@@ -1,0 +1,42 @@
+# ══════════════════════════════════════════════════════════════════════
+#  MUSTERI VERISI — ASLA DEPOYA GIRMEMELI
+#  Bu depo public. Asagidakiler gercek musteri konfigurasyonu ve
+#  onlardan uretilmis raporlar icerir.
+# ══════════════════════════════════════════════════════════════════════
+Sample TSF/
+*.tgz
+*.tar.gz
+*.tgz_*
+bpa_raw_*.json
+reports/
+scale_test*.json
+scale_test*.html
+*_tr.html
+*_en.html
+*_EN.html
+*_TR.html
+*_RU.html
+
+# Kimlik bilgisi tasiyabilecek dosyalar
+.cf-token
+*.env
+.env*
+!.env.example
+
+# Arac ciktilari
+.wrangler/
+**/.wrangler/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+**/.DS_Store
+
+# Yerel calisma
+.claude/
+archive/
+
+# Ucuncu taraf icerik — yeniden yayinlanmamali
+# "BPA API.pdf"          : LIVEcommunity makalesi (baskasinin telifi)
+# sample-bpa-summary-report.pdf : ornek BPA raporu, gercek cihaz verisi tasiyor
+*.pdf

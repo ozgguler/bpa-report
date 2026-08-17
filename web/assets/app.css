@@ -1,0 +1,63 @@
+:root{--bg:#f6f7f9;--fg:#1c1e21;--mut:#6b7280;--line:#e3e5e8;--card:#fff;
+        --good:#2e6b3e;--bad:#b3261e;--warn:#c77700;--accent:#2b5c9b}
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#16181b;--fg:#e8eaed;--mut:#9aa0a6;--line:#2c2f34;--card:#1e2126;
+          --good:#6cc48a;--bad:#f2827a;--warn:#e0a355;--accent:#7aa7e0}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--fg)}
+  .wrap{max-width:820px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 20px;font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px;margin-bottom:16px}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);
+           margin:0 0 12px;font-weight:600}
+  label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  input[type=text],input[type=password]{width:100%;padding:8px 10px;border:1px solid var(--line);
+    border-radius:6px;background:var(--bg);color:var(--fg);font:13px ui-monospace,Menlo,monospace}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #drop{border:2px dashed var(--line);border-radius:8px;padding:22px;text-align:center;
+        cursor:pointer;font-size:13px;color:var(--mut);transition:.12s}
+  #drop.has{border-color:var(--good);color:var(--fg)}
+  #drop.over{border-color:var(--accent);color:var(--fg);
+             background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  button{padding:10px 18px;border:0;border-radius:7px;background:var(--accent);color:#fff;
+         font-size:14px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .steps{list-style:none;padding:0;margin:0;font-size:13px}
+  .steps li{padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+  .steps li:last-child{border:0}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+  .dot.run{background:var(--warn);animation:p 1s infinite}
+  .dot.ok{background:var(--good)}.dot.err{background:var(--bad)}
+  @keyframes p{50%{opacity:.35}}
+  .t{margin-left:auto;color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0;font-size:13px}
+  dt{color:var(--mut)}dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+  code{font:12px ui-monospace,Menlo,monospace;background:var(--bg);padding:1px 5px;border-radius:4px}
+  .err{color:var(--bad)}.ok{color:var(--good)}
+  .warnbox{border-left:3px solid var(--warn);padding:9px 12px;font-size:12.5px;
+           margin-top:12px;border-radius:0 6px 6px 0;background:var(--bg)}
+
+/* --- urun arayuzu eklemeleri --- */
+.hdr{margin-bottom:20px}
+.hdr h1{font-size:22px;margin:0 0 5px}
+.help{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.help summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600}
+.help ol{margin:10px 0 4px;padding-left:20px;font-size:13px;line-height:1.7}
+.help li{margin-bottom:3px}
+.help a{color:var(--accent)}
+.tiny{font-size:12px;color:var(--mut);margin:6px 0 0}
+.privacy ul{margin:0;padding-left:18px;font-size:13px;line-height:1.65}
+.privacy li{margin-bottom:9px}
+.privacy li:last-child{margin-bottom:0}
+.foot{font-size:12px;color:var(--mut);text-align:center;padding:4px 0 24px;line-height:1.6}
+
+/* --- dil secici ve eylem dugmeleri --- */
+.langs{display:flex;gap:18px;flex-wrap:wrap}
+.langs label{display:flex;align-items:center;gap:6px;margin:0;font-size:14px;
+             color:var(--fg);cursor:pointer}
+.langs input{accent-color:var(--accent);cursor:pointer}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.actions .dl{align-self:center;font-size:13px;color:var(--accent)}

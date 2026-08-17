@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Best Practice Assessment — Palo Alto Networks NGFW</title>
+<link rel="stylesheet" href="./assets/app.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="hdr">
+    <h1>Best Practice Assessment</h1>
+    <p class="sub">Turns a Tech Support File or configuration export into a readable
+       compliance report, using the Palo Alto Networks Posture API.</p>
+  </header>
+
+  <div id="compat" class="warnbox" hidden></div>
+
+  <div class="card">
+    <h2>1 · Service account</h2>
+    <label for="cid">Client ID</label>
+    <input type="text" id="cid" placeholder="name@1234567890.iam.panserviceaccount.com"
+           autocomplete="off" spellcheck="false">
+    <div class="grid2">
+      <div><label for="sec">Client secret</label>
+        <input type="password" id="sec" autocomplete="off"></div>
+      <div><label for="tsg">TSG ID</label>
+        <input type="text" id="tsg" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div class="grid2">
+      <div><label for="mail">Requester email</label>
+        <input type="text" id="mail" autocomplete="off" spellcheck="false"></div>
+      <div><label for="name">Requester name</label>
+        <input type="text" id="name" autocomplete="off"></div>
+    </div>
+
+    <details class="help">
+      <summary>I don't have a service account — how do I create one?</summary>
+      <ol>
+        <li><a href="https://apps.paloaltonetworks.com/hub" target="_blank"
+               rel="noopener noreferrer">Palo Alto Networks Hub</a> → <b>Common Services →
+            Identity &amp; Access</b></li>
+        <li>Select the tenant/TSG the API call should run against</li>
+        <li><b>Add Identity</b> → Identity Type: <b>Service Account</b></li>
+        <li>Give it a name that is identifiable during an audit (e.g. <code>bpa-report</code>)</li>
+        <li>Save the <b>Client ID</b> and <b>Client secret</b> —
+            <b>the secret is shown only once</b></li>
+        <li>Assign a role (the reference guide suggests <code>All Apps &amp; Services</code>
+            + <code>Superuser</code>)</li>
+      </ol>
+      <p class="tiny">The TSG ID appears in the tenant selector on the Identity &amp; Access
+         screen.</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>2 · Configuration file</h2>
+    <div id="drop">Drop a Tech Support File (.tgz) or configuration XML here, or click to
+      browse<input type="file" id="file" hidden></div>
+    <div id="meta"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Report language</h2>
+    <div class="langs" id="langs">
+      <label><input type="radio" name="lang" value="en" checked> English</label>
+      <label><input type="radio" name="lang" value="tr"> Türkçe</label>
+      <label><input type="radio" name="lang" value="ru"> Русский</label>
+    </div>
+    <p class="tiny">Check names and remediation text come from Palo Alto Networks in English
+       and are shown as provided; the report structure and labels are translated.</p>
+  </div>
+
+  <button id="go" disabled>Run assessment</button>
+
+  <div class="card" id="progress" hidden>
+    <h2>Progress</h2>
+    <ul class="steps" id="steps"></ul>
+  </div>
+  <div id="out"></div>
+
+  <section class="card privacy">
+    <h2>What happens to your data</h2>
+    <ul>
+      <li><b>This tool stores nothing.</b> Neither your credentials, nor your configuration,
+          nor the report is written to a database or disk. Close the tab and everything
+          is gone.</li>
+      <li><b>Your Tech Support File never leaves your computer.</b> The archive is opened in
+          your browser; the logs, core dumps and user data inside it are never transmitted.
+          Only the configuration XML is sent — typically <b>less than 1%</b> of the file.</li>
+      <li><b>Your configuration is uploaded to Palo Alto Networks.</b> The analysis runs
+          there, and the file is written to PANW storage <b>under your own tenant</b>. We
+          don't retain it, but Palo Alto does — that is how the Posture API works.</li>
+      <li><b>Your credentials pass through our server.</b> Palo Alto's endpoints do not allow
+          direct calls from a browser (CORS is closed), so requests must go through a relay.
+          That relay stores and logs nothing — but the data does pass through it in transit.
+          If you would rather it didn't, you can run this tool on your own machine.</li>
+    </ul>
+  </section>
+
+  <footer class="foot">
+    Not an official Palo Alto Networks product. The assessment is configuration-based only;
+    traffic and runtime data are out of scope.
+  </footer>
+</div>
+<script type="module" src="./assets/app.js"></script>
+</body>
+</html>

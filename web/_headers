@@ -1,0 +1,30 @@
+# Cloudflare Pages guvenlik baslikleri.
+#
+# Bu uygulama firewall konfigurasyonu ve canli API credential'i isliyor.
+# Baslik seti buna gore siki tutuldu.
+
+/*
+  # --- CSP ---
+  # script-src 'self'  : inline script YOK (app.js ayri dosyaya cikarildi).
+  #                      Bir XSS bulunsa bile enjekte edilen script calismaz.
+  # style-src  'unsafe-inline' : rapor ureteci (report.js) HTML'i inline <style>
+  #                      ile uretiyor ve blob: sekmede aciliyor. Stil enjeksiyonu
+  #                      script'e gore cok dusuk riskli; bu odun bilincli.
+  # connect-src 'self' : tum API cagrilari ayni origin'deki /api/* proxy'sine
+  #                      gider. Config'in tarayicidan dogrudan GCS'e gitmesi
+  #                      (tryDirect) varsayilan olarak KAPALI oldugu icin
+  #                      storage.googleapis.com burada YOK — acilirsa eklenmeli.
+  # frame-ancestors 'none' : clickjacking.
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; child-src blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+
+  # --- Diger ---
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()
+
+# Credential ve config tasiyan uc noktalar asla onbellege alinmamali
+/api/*
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer

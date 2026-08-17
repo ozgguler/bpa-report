@@ -1,0 +1,17 @@
+# Imaja girmemesi gerekenler
+.wrangler/
+**/.wrangler/
+archive/
+tools/
+reports/
+Sample TSF/
+*.tgz
+bpa_raw_*.json
+scale_test*
+*.pdf
+.claude/
+.git/
+.DS_Store
+**/.DS_Store
+DEPLOY.md
+ARCHITECTURE.md

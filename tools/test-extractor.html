@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TSF Extractor — tarayıcı testi</title>
+<style>
+  :root{--bg:#f6f7f9;--fg:#1c1e21;--mut:#6b7280;--line:#e3e5e8;--card:#fff;
+        --good:#2e6b3e;--bad:#b3261e;--warn:#c77700;--accent:#2b5c9b}
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#16181b;--fg:#e8eaed;--mut:#9aa0a6;--line:#2c2f34;--card:#1e2126;
+          --good:#6cc48a;--bad:#f2827a;--warn:#e0a355;--accent:#7aa7e0}}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--fg)}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 20px;font-size:13px}
+  #drop{border:2px dashed var(--line);border-radius:10px;padding:40px 20px;text-align:center;
+        background:var(--card);cursor:pointer;transition:.15s}
+  #drop:hover,#drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--card))}
+  #drop b{display:block;font-size:15px;margin-bottom:4px}
+  #drop span{color:var(--mut);font-size:13px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px;margin-top:16px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);
+           margin:0 0 12px;font-weight:600}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;margin:0;font-size:13px}
+  dt{color:var(--mut)}
+  dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums;
+     overflow-wrap:anywhere}
+  code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);
+       padding:1px 5px;border-radius:4px}
+  .ok{color:var(--good)}.err{color:var(--bad)}.wn{color:var(--warn)}
+  progress{width:100%;height:7px;margin-top:14px}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;
+      overflow:auto;max-height:260px;font:12px ui-monospace,SFMono-Regular,Menlo,monospace;margin:0}
+  .pill{display:inline-block;padding:2px 9px;border-radius:11px;font-size:12px;font-weight:600}
+  .pill.g{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
+  .pill.b{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)}
+  .warnbox{border-left:3px solid var(--warn);padding:9px 12px;background:var(--card);
+           font-size:13px;margin-top:12px;border-radius:0 6px 6px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>TSF Extractor — tarayıcı testi</h1>
+  <p class="sub">Mimarinin en riskli varsayımını doğrular: Tech Support File'ı
+     <b>kullanıcının makinesinde</b> açıp içinden yalnızca config XML'i çıkarmak.
+     Hiçbir veri hiçbir yere gönderilmez.</p>
+
+  <div id="drop">
+    <b>TSF dosyasını buraya sürükle</b>
+    <span>veya tıklayıp seç · .tgz / .tar.gz</span>
+    <input type="file" id="file" hidden>
+  </div>
+
+  <progress id="prog" max="100" value="0" hidden></progress>
+  <div id="out"></div>
+</div>
+
+<script type="module">
+import { extractFromTsf } from '../web/lib/tsf.js';
+import { buildMetadata } from '../web/lib/metadata.js';
+
+const drop = document.getElementById('drop');
+const input = document.getElementById('file');
+const prog = document.getElementById('prog');
+const out = document.getElementById('out');
+
+const fmt = n => n >= 1024**3 ? (n/1024**3).toFixed(2)+' GB'
+             : n >= 1024**2 ? (n/1024**2).toFixed(1)+' MB'
+             : (n/1024).toFixed(1)+' KB';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// Tarayicinin varsayilan davranisi bir dosya birakildiginda onu SAYFA OLARAK
+// ACMAKTIR. Yalnizca birakma kutusunda engellemek yetmez — kutunun birkac
+// piksel disina birakilinca Safari file:// adresine gider. Bu yuzden olay
+// belge genelinde engellenir ve sayfanin TAMAMI birakma hedefi yapilir.
+let dragDepth = 0;
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => {
+  e.preventDefault();
+  if (ev === 'dragenter') dragDepth++;
+  drop.classList.add('over');
+}));
+document.addEventListener('dragleave', e => {
+  e.preventDefault();
+  if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove('over'); }
+});
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  drop.classList.remove('over');
+  const f = e.dataTransfer?.files?.[0];
+  if (f) run(f);
+});
+
+drop.onclick = () => input.click();
+input.onchange = () => input.files[0] && run(input.files[0]);
+
+const ERRORS = {
+  UNSUPPORTED_BROWSER: 'Bu tarayıcı DecompressionStream desteklemiyor. ' +
+    'Chrome/Edge 80+, Firefox 113+ veya Safari 16.4+ gerekir.',
+  NOT_GZIP: 'Dosya gzip değil. İndirilirken sarmalanmış olabilir — ' +
+    'TSF\'i yeniden indirip tekrar dene.',
+  CONFIG_NOT_FOUND: 'Arşiv içinde config XML bulunamadı. Geçerli bir TSF mi?',
+  DECOMPRESSION_LIMIT: 'Açılmış boyut tavanı aşıldı (8 GB).',
+};
+
+async function run(file) {
+  out.innerHTML = '';
+  prog.hidden = false; prog.removeAttribute('value');
+  const t0 = performance.now();
+
+  try {
+    const res = await extractFromTsf(file, {
+      onProgress: ({ bytes, files }) => {
+        prog.title = `${fmt(bytes)} · ${files} dosya`;
+      },
+    });
+    const meta = buildMetadata(res);
+    prog.hidden = true;
+
+    const wall = Math.round(performance.now() - t0);
+    const ratio = (res.unpacked / file.size).toFixed(1);
+    const thru = (res.unpacked / 1024**2 / (res.ms / 1000)).toFixed(0);
+
+    const missing = meta.missing.length
+      ? `<div class="warnbox"><b>Kullanıcıya sorulacak alanlar:</b>
+         ${meta.missing.map(m => `<code>${esc(m)}</code>`).join(' ')}
+         — bu TSF'te <code>show system info</code> bulunamadı.</div>`
+      : `<div class="warnbox" style="border-left-color:var(--good)">
+         Tüm zorunlu API alanları otomatik dolduruldu — kullanıcının hiçbir şey
+         yazmasına gerek yok.</div>`;
+
+    out.innerHTML = `
+      <div class="card">
+        <h2>Sonuç <span class="pill g">başarılı</span></h2>
+        <dl>
+          <dt>Dosya</dt><dd>${esc(file.name)} · ${fmt(file.size)}</dd>
+          <dt>Açılmış boyut</dt><dd>${fmt(res.unpacked)} <span style="font-weight:400;color:var(--mut)">(${ratio}× sıkıştırma)</span></dd>
+          <dt>Taranan dosya</dt><dd>${res.files}</dd>
+          <dt>Süre</dt><dd class="ok">${wall} ms <span style="font-weight:400;color:var(--mut)">(~${thru} MB/s)</span></dd>
+          <dt>Config yolu</dt><dd><code>${esc(res.configPath)}</code></dd>
+          <dt>Config boyutu</dt><dd>${fmt(res.configText.length)}</dd>
+          <dt>Sunucuya gidecek</dt><dd class="ok">${fmt(res.configText.length)}
+            <span style="font-weight:400;color:var(--mut)">— TSF'in %${(100*res.configText.length/file.size).toFixed(2)}'i</span></dd>
+          <dt>system info</dt><dd>${res.sysinfoPath ? `<code>${esc(res.sysinfoPath)}</code>` : '<span class="wn">bulunamadı</span>'}</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>Çıkarılan cihaz metadata'sı</h2>
+        <dl>
+          <dt>hostname</dt><dd>${esc(meta.hostname) || '—'}</dd>
+          <dt>family</dt><dd>${esc(meta.family) || '<span class="err">—</span>'}</dd>
+          <dt>model</dt><dd>${esc(meta.model) || '<span class="err">—</span>'}</dd>
+          <dt>serial</dt><dd>${esc(meta.serial) || '<span class="err">—</span>'}</dd>
+          <dt>version (PAN-OS)</dt><dd>${esc(meta.version) || '<span class="err">—</span>'}</dd>
+          <dt>yönetim IP</dt><dd>${esc(meta.ipAddress) || '—'}</dd>
+          <dt>config şema sürümü</dt><dd style="font-weight:400;color:var(--mut)">
+            ${esc(meta.configSchemaVersion) || '—'} — bu PAN-OS sürümü <b>değildir</b></dd>
+        </dl>
+        ${missing}
+      </div>
+
+      <div class="card">
+        <h2>Config XML — ilk 1200 karakter</h2>
+        <pre>${esc(res.configText.slice(0, 1200))}</pre>
+      </div>`;
+  } catch (e) {
+    prog.hidden = true;
+    const msg = ERRORS[e.message] || e.message;
+    out.innerHTML = `<div class="card"><h2>Sonuç <span class="pill b">hata</span></h2>
+      <p class="err" style="margin:0">${esc(msg)}</p>
+      ${e.detail ? `<p style="margin:8px 0 0;color:var(--mut);font-size:13px">
+        İlk baytlar: <code>${esc(e.detail)}</code></p>` : ''}</div>`;
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>

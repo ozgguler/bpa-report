@@ -1,0 +1,37 @@
+# Kendi makinende calistirmak icin:
+#     docker compose up -d
+#     http://localhost:8080
+#
+# Bu surumde kimlik bilgileri hicbir zaman senin agindan cikmaz — proxy burada,
+# senin makinende calisir. Disari giden tek trafik dogrudan Palo Alto'ya gider.
+
+services:
+  bpa:
+    build: .
+    image: bpa-report:local
+    container_name: bpa-report
+    ports:
+      # Yalnizca yerel arayuze bagla. Aga acmak istersen "8080:8080" yap
+      # ve onune TLS sonlandiran bir vekil koy — bu servis duz HTTP konusur.
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+    # --- Sertlestirme ---
+    # Servis durumsuzdur: veritabani, disk yazimi, kalici veri yoktur.
+    # Bu yuzden dosya sistemi tamamen salt-okunur baglanabilir.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    pids_limit: 128
+
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/',timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

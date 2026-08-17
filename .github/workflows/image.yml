@@ -1,0 +1,114 @@
+name: Build image
+
+# Imaj GHCR'ye yayinlanir. Yerel Docker gerekmez — ve yerelde derlemekten
+# daha iyidir: burada COK MIMARILI (amd64 + arm64) derlenir, boylece partner
+# Intel Mac'te de ARM sunucuda da ayni komutla calistirabilir.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/bpa-report
+
+jobs:
+  # ── Once dogrula: imaj yayinlanmadan once gercekten calistigini gorelim ──
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Imaji derle (yalnizca yerel, tek mimari — hizli)
+        run: docker build -t bpa-test .
+
+      - name: Calistir
+        run: |
+          docker run -d --name bpa -p 8080:8080 \
+            --read-only --tmpfs /tmp \
+            --security-opt no-new-privileges:true --cap-drop ALL \
+            bpa-test
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8080/ >/dev/null && break
+            sleep 1
+          done
+
+      - name: Statik dosyalar
+        run: |
+          set -e
+          for p in / /assets/app.css /assets/app.js /lib/tsf.js /lib/report.js; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$p")
+            echo "  $p -> $code"
+            [ "$code" = "200" ] || { echo "BASARISIZ: $p"; exit 1; }
+          done
+
+      - name: Proxy koruma katmanlari
+        run: |
+          set -e
+          # Bos credential -> 400
+          curl -s -X POST localhost:8080/api/token -H 'Content-Type: application/json' \
+            -d '{}' | grep -q missing_credentials
+          # Acik proxy denemesi -> reddedilmeli
+          curl -s -X POST localhost:8080/api/upload \
+            -H 'X-Upload-Url: https://evil.example.com/x' -d x | grep -q bad_target
+          # http downgrade -> reddedilmeli
+          curl -s -X POST localhost:8080/api/upload \
+            -H 'X-Upload-Url: http://storage.googleapis.com/x' -d x | grep -q bad_target
+          # Token'siz durum sorgusu -> 401
+          curl -s localhost:8080/api/status?task=abc | grep -q missing_token
+          echo "  tum koruma katmanlari calisiyor"
+
+      - name: Root olarak calismiyor
+        run: |
+          u=$(docker exec bpa id -un)
+          echo "  konteyner kullanicisi: $u"
+          [ "$u" != "root" ] || { echo "ROOT OLARAK CALISIYOR"; exit 1; }
+
+      - name: Kayitlar
+        if: always()
+        run: docker logs bpa 2>&1 | tail -20
+
+  # ── Dogrulama gectiyse cok mimarili derle ve yayinla ──
+  publish:
+    needs: smoke
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=raw,value={{date 'YYYYMMDD'}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ozet
+        run: |
+          echo "### İmaj yayınlandı" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -p 8080:8080 ${{ env.IMAGE }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
