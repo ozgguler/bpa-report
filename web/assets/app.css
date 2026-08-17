@@ -61,3 +61,5 @@
 .langs input{accent-color:var(--accent);cursor:pointer}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}
 .actions .dl{align-self:center;font-size:13px;color:var(--accent)}
+.foot a{color:var(--mut);text-decoration:underline}
+.foot a:hover{color:var(--accent)}

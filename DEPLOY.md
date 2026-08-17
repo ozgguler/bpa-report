@@ -42,7 +42,23 @@ Create the project once:
 npx wrangler pages project create bpa-report --production-branch main
 ```
 
-Then, for every deployment:
+### Deployment is automatic
+
+Both delivery targets are updated from the same commit by GitHub Actions, so they cannot
+drift apart:
+
+| Push to `main` touching… | What happens |
+|---|---|
+| `web/**`, `Dockerfile`, `serve.py` | Site deployed **and** image rebuilt |
+| documentation only | Nothing — see the `paths` filter in `.github/workflows/ci.yml` |
+
+Two repository secrets make this work: `CLOUDFLARE_API_TOKEN` (a custom token with
+**Account → Cloudflare Pages → Edit** and nothing else) and `CLOUDFLARE_ACCOUNT_ID`.
+
+The `pages` job **verifies the live site after deploying** — it calls `/api/token` for real
+and fails the run unless the relay answers. See the warning below for why that check exists.
+
+To deploy by hand anyway:
 
 ```bash
 cd ~/Desktop/BPA/web && npx wrangler pages deploy . --project-name bpa-report
