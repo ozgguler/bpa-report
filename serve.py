@@ -26,6 +26,22 @@ BIND = os.environ.get("BIND", "127.0.0.1")
 APP_AT_ROOT = os.path.isfile(os.path.join(ROOT, "index.html"))
 os.chdir(ROOT)
 
+# web/_headers dosyasindaki ile ayni guvenlik basliklari.
+# Tek kaynak olmasi ideal olurdu; _headers Cloudflare'e ozgu bir format
+# oldugu icin burada elle tutuluyor — birini degistirirken digerini de
+# guncelle.
+SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "font-src 'self'; connect-src 'self'; child-src blob:; "
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'none'; "
+        "object-src 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+}
+
 AUTH_URL = "https://auth.apps.paloaltonetworks.com/oauth2/access_token"
 API_BASE = "https://api.strata.paloaltonetworks.com/posture/checks/v1/reports"
 STORAGE_HOSTS = {"storage.googleapis.com"}
@@ -103,6 +119,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         if not self.path.startswith("/api/"):
             self.send_header("Cache-Control", "no-store")
+            # web/_headers ile AYNI CSP. Yereli uretime benzetmek icin burada.
+            #
+            # NEDEN: bir kez satir ici onclick kullandik; yerelde calisti,
+            # Cloudflare'de CSP sessizce engelledi ve rapordaki "PDF olarak
+            # kaydet" dugmesi olu kaldi. Yerelde CSP olmadigi icin fark ancak
+            # canlida goruldu. Bu baslik o sinifi hatayi gelistirirken yakalar.
+            for k, v in SECURITY_HEADERS.items():
+                self.send_header(k, v)
         super().end_headers()
 
     # ---- yonlendirme ----
