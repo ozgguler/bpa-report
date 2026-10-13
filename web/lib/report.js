@@ -98,7 +98,7 @@ export const STR = {
     appendix_body: 'Bu rapor, cihazdan alınan konfigürasyonun Palo Alto Networks Strata Cloud Manager Posture API\'sine gönderilmesiyle üretilen makine okunabilir sonucun biçimlendirilmiş hâlidir. Değerlendirme yalnızca konfigürasyona dayanır; trafik, log ve çalışma zamanı verisi kapsam dışıdır. Kontrol adları ve çözüm önerileri Palo Alto Networks tarafından tanımlanır ve İngilizce sağlanır. «Kapsam dışı» olarak işaretlenen kontroller skora dahil edilmez.',
     nofindings: 'Bu alanda uygunsuzluk tespit edilmedi.',
     yes: 'Var', no: 'Yok',
-    print: 'PDF olarak kaydet',
+    print: 'PDF olarak kaydet', print_hint: 'veya ⌘/Ctrl + P',
   },
   en: {
     title: 'Best Practice Assessment',
@@ -171,7 +171,7 @@ export const STR = {
     appendix_body: 'This report is a formatted rendering of the machine-readable result produced by submitting the device configuration to the Palo Alto Networks Strata Cloud Manager Posture API. The assessment is configuration-based only; traffic, logs and runtime data are out of scope. Check names and recommendations are defined by Palo Alto Networks and provided in English. Checks marked “out of scope” do not contribute to the score.',
     nofindings: 'No non-compliant checks in this area.',
     yes: 'Yes', no: 'No',
-    print: 'Save as PDF',
+    print: 'Save as PDF', print_hint: 'or ⌘/Ctrl + P',
   },
 
   ru: {
@@ -269,7 +269,7 @@ export const STR = {
                  + '«вне области оценки», не влияют на итоговый показатель.',
     nofindings: 'Несоответствий в этой области не выявлено.',
     yes: 'Есть', no: 'Нет',
-    print: 'Сохранить в PDF',
+    print: 'Сохранить в PDF', print_hint: 'или ⌘/Ctrl + P',
   },
 };
 
@@ -692,9 +692,12 @@ tr.risk td{background:#fdf4f3}
       padding-top:4pt;font-size:7.4pt;color:#9aa0a6;display:flex;justify-content:space-between}
 @media print{.foot{position:fixed;bottom:3mm;left:0;right:0}}
 #printbar{position:fixed;top:14px;right:14px;z-index:99;display:flex;gap:8px}
+#printbar{align-items:center}
 #printbar button{padding:9px 16px;border:0;border-radius:7px;background:#1c1e21;color:#fff;
   font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
   cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#printbar .pb-hint{font:500 11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  color:#6b7280;background:rgba(255,255,255,.85);padding:3px 7px;border-radius:5px}
 `;
 
 // ---------------------------------------------------------------------------
@@ -973,15 +976,47 @@ export function renderReport(report, lang = 'tr') {
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(T.title)} — ${esc(host)}</title><style>${CSS}</style></head><body>
-<div id="printbar"><button onclick="window.print()">${esc(T.print)}</button></div>
+<div id="printbar"><button type="button" id="bpa-print">${esc(T.print)}</button>
+<span class="pb-hint">${esc(T.print_hint)}</span></div>
 ${P.join('')}</body></html>`;
 }
 
-/** Raporu yeni sekmede acar. Kullanici Cmd+P ile PDF olarak kaydeder. */
+/**
+ * Raporu yeni sekmede acar ve yazdirma dugmesini BAGLAR.
+ *
+ * Dugme neden burada baglaniyor: rapor `blob:` belgesi olarak aciliyor ve
+ * olusturan sayfanin CSP'sini MIRAS ALIYOR. CSP'de `script-src 'self'` oldugu
+ * icin satir ici `onclick="window.print()"` calismaz — tarayici sessizce
+ * engeller ("Executing inline event handler violates ... The action has been
+ * blocked"). Stiller uygulanir, script'ler uygulanmaz; bu yuzden sayfa dogru
+ * gorunur ama dugme olu kalirdi.
+ *
+ * Buradan addEventListener ile baglamak satir ici script sayilmaz, dolayisiyla
+ * CSP'ye hic takilmaz. Blob belgesi ayni origin oldugu icin erisim serbest.
+ */
 export function openReport(report, lang = 'tr') {
+  const T = STR[lang] || STR.tr;
   const html = renderReport(report, lang);
   const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
   const w = window.open(url, '_blank');
+
+  if (w) {
+    const wire = () => {
+      try {
+        const b = w.document && w.document.getElementById('bpa-print');
+        if (!b || b.dataset.wired) return !!b;
+        b.dataset.wired = '1';
+        b.addEventListener('click', () => w.print());
+        return true;
+      } catch { return false; }       // sekme kapandi veya henuz hazir degil
+    };
+    // 'load' bazen biz dinlemeye baslamadan once tetiklenir; kisa sureli
+    // yoklama ile ikisini de yakalariz.
+    try { w.addEventListener('load', wire); } catch { /* yok sayilabilir */ }
+    let n = 0;
+    const t = setInterval(() => { if (wire() || ++n > 50) clearInterval(t); }, 100);
+  }
+
   // Blob URL sekme kapanana kadar yasamali; erken revoke edilirse sayfa bosalir
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   return w;
